@@ -1,0 +1,66 @@
+---
+title: "Air quality"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+  toc: true
+  toc_depth: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#header 1
+```{r}
+# Load the "airquality" data set
+data("airquality")
+```
+
+subsetting
+
+```{r}
+library(dplyr)
+wind_temp <- subset(data, select= c("Wind", "Temp"))
+wind_temp <- airquality[c("Wind","Temp")]
+```
+
+```{r}
+# View the structure of the data set
+str(airquality)
+
+# Get summary statistics of the data
+summary(airquality)
+
+# Create histograms of the variables to identify outliers and distributions
+par(mfrow = c(2, 2)) # sets the plot panel to display 2 rows and 2 columns
+hist(airquality$Ozone)
+hist(airquality$Solar.R)
+hist(airquality$Wind)
+hist(airquality$Temp)
+
+# Create boxplots to identify outliers and distributions
+par(mfrow = c(2, 2)) # sets the plot panel to display 2 rows and 2 columns
+boxplot(airquality$Ozone)
+boxplot(airquality$Solar.R)
+boxplot(airquality$Wind)
+boxplot(airquality$Temp)
+
+# Create scatter plots to identify relationships between variables
+plot(airquality$Ozone ~ airquality$Solar.R)
+plot(airquality$Ozone ~ airquality$Wind)
+plot(airquality$Ozone ~ airquality$Temp)
+
+```
+```{r}
+# Identify outliers in the Ozone variable
+boxplot(airquality$Ozone, plot = FALSE) # creates a boxplot without plotting it
+outliers <- which(airquality$Ozone > boxplot(airquality$Ozone, plot = FALSE)$stats[5] | airquality$Ozone < boxplot(airquality$Ozone, plot = FALSE)$stats[1])
+airquality[outliers, ] # view the rows with outliers in the Ozone variable
+
+```
+##header2
+
+
