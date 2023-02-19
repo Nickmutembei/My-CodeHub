@@ -1,0 +1,190 @@
+---
+title: "Parkinson's Data Analysis"
+output:
+  html_document:
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+      collapse_button_text: "Click to show/hide code"
+
+     
+---
+
+```{r, echo=FALSE, eval=FALSE, showtext=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+---
+```{r, include=FALSE}
+options(tinytex.verbose = TRUE)
+```
+
+```{r,message=FALSE, warning=FALSE, echo=FALSE, eval=FALSE, showtext=TRUE}
+library(readr)
+library(ggplot2)
+library(tidyverse)
+```
+
+# Importing the dataset
+
+```{r, message=FALSE, warning=FALSE}
+data <- read_csv("C:/Users/Admins/Desktop/parkinsons.csv")
+data$name<- NULL
+```
+
+
+# Boxplot of the 'MDVP:Shimmer' feature
+```{r}
+ggplot(data, aes(x = factor(status), y = `MDVP:Shimmer`)) +
+  geom_boxplot() +
+  ggtitle("Boxplot of MDVP:Shimmer") +
+  xlab("Status (0 = Healthy, 1 = Parkinson's)") +
+  ylab("MDVP:Shimmer")+
+  theme_bw()
+```
+# scatterplot of the 'NHR' vs. 'HNR' features
+```{r}
+ggplot(data, aes(x = NHR, y = HNR, color = factor(status))) +
+  geom_point() +
+  ggtitle("Scatterplot of NHR vs. HNR") +
+  xlab("NHR") +
+  ylab("HNR") +
+  scale_color_discrete(name = "Status", labels = c("Healthy", "Parkinson's"))+theme_bw()
+
+```
+# Barplot of the distribution of the 'status' feature
+```{r}
+ggplot(data, aes(x = factor(status))) +
+  geom_bar(fill= (col="darkgrey")) +
+  ggtitle("Distribution of Status") +
+  xlab("Status (0 = Healthy, 1 = Parkinson's)") +
+  ylab("Count")+
+  theme_bw()
+
+```
+# Density plot of the 'D2' feature
+```{r}
+ggplot(data, aes(x = D2, color = factor(status))) +
+  geom_density() +
+  ggtitle("Density Plot of D2") +
+  xlab("D2") +
+  ylab("Density") +
+  scale_color_discrete(name = "Status", labels = c("Healthy", "Parkinson's"))+theme_bw()
+
+```
+# histogram of "MDVP:Fhi(Hz)" column
+```{r}
+ggplot(data, aes(x = `MDVP:Fhi(Hz)`)) +
+  geom_histogram(fill = "blue", alpha = 0.5, binwidth = 30) +
+  ggtitle("Histogram of MDVP:Fhi(Hz)") +
+  xlab("MDVP:Fhi(Hz)") +
+  ylab("Frequency")+theme_bw()
+```
+
+
+# linear logistic model
+
+```{r, message=FALSE,warning=FALSE}
+# Load the caret library
+library(caret)
+```
+
+```{r}
+# Load the necessary libraries
+library(caret)
+```
+
+# Split the data into training and testing sets
+```{r}
+set.seed(123)
+splitIndex <- createDataPartition(data$status, p = 0.7, list = FALSE)
+train_data <- data[splitIndex, ]
+test_data <- data[-splitIndex, ]
+
+# Exclude the "name" column from the data
+train_data_no_name <- train_data[,-1]
+test_data_no_name <- test_data[,-1]
+```
+
+# Fit a logistic regression model
+```{r, message=FALSE, warning=FALSE}
+logistic_model <- train(status ~ ., data = train_data_no_name, method = "glm", family = "binomial")
+
+```
+
+# Predict the status on the test data
+```{r}
+predictions <- predict(logistic_model, newdata = test_data_no_name)
+# Evaluate the model performance using Mean Absolute Error (MAE)
+mae <- mean(abs(predictions - test_data$status))
+mae
+```
+
+# Linear regression model
+
+```{r, message=FALSE, warning=FALSE}
+# Load the necessary libraries
+library(caret)
+
+# Split the data into training and testing sets
+set.seed(123)
+splitIndex <- createDataPartition(data$status, p = 0.7, list = FALSE)
+train_data <- data[splitIndex, ]
+test_data <- data[-splitIndex, ]
+
+# Exclude the "name" column from the data
+train_data_no_name <- train_data[,-1]
+test_data_no_name <- test_data[,-1]
+```
+
+# simple linear regression model
+```{r}
+model <- lm(status ~ ., data = train_data)
+```
+
+# simple linear regression Model predictions
+```{r}
+predictions <- predict(model, newdata = test_data)
+
+# Evaluate the model performance using Mean Absolute Error (MAE)
+mae <- mean(abs(predictions - test_data$status))
+mae
+```
+
+# Knn linear model
+
+```{r}
+library(class)
+
+# Split the data into training and test sets
+set.seed(123)
+train_index <- sample(1:nrow(data), 0.7 * nrow(data))
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+model_knn <- train(status ~ ., data = train_data, method = "knn")
+summary(model_knn)
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+# Predict on the test data
+predictions_knn <- predict(model_knn, newdata = test_data)
+
+# Calculate the MSE
+mse <- mean((predictions - test_data$status)^2)
+mse
+```
+# Report 
+
+The mean of the “MDVP:Fo(Hz)” variable, which represents the mean fundamental frequency, is significantly higher in individuals with Parkinson’s disease (127.7 Hz) compared to healthy individuals (115.2 Hz). This suggests that a higher mean fundamental frequency may be associated with Parkinson’s disease. Similarly, the mean of the “Jitter:DDP” variable, which is significantly higher in individuals with Parkinson’s disease (0.014) compared to healthy individuals (0.012). 
+The mean of the “MDVP:Shimmer” variable, which represents the local variations in amplitude, is also significantly higher in individuals with Parkinson’s disease (0.066) compared to healthy individuals (0.055). This suggests that higher values of jitter and shimmer may be indicative of Parkinson’s disease.
+
+To identify the best model between the Knn and the linear regression model, we used the The Mean Absolute Error (MAE). THe model with the lowest model is the best model for the data, therefore the KNN model is the best model with  MAE of 0.1618094, followed by the linear logistic model with 0.2018143, and the linear regression model with a MAE of 0.2984471.
+
+Conclusion :
+the Parkinson’s disease data set provides several insights into the characteristics of individuals with and without Parkinson’s disease. A higher mean fundamental frequency, higher values of jitter and shimmer, and positive associations between these variables and the presence of Parkinson’s disease suggest that they may be useful indicators of Parkinson’s disease. Further analysis and modeling is necessary to determine the strength of these associations and the utility of these variables in predicting Parkinson’s disease.
