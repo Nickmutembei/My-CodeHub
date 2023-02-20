@@ -1,0 +1,115 @@
+---
+title: 'PSY173: Introduction to Psychological Research Methods'
+date: "2/19/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Data Import
+
+```{r, message=FALSE, warning=FALSE}
+library(readr)
+data <- read_csv("C:/Users/Admins/Desktop/R/data/my_data.csv")
+```
+
+
+# Normality testing
+
+```{r}
+# Conduct normality testing using the Shapiro-Wilk test
+shapiro.test(data$Participants)
+shapiro.test(data$Group)
+shapiro.test(data$`Dependent variable`)
+shapiro.test(data$`Range of group-low`)
+shapiro.test(data$`Range of group-high`)
+```
+# Describe statistics
+
+```{r}
+# Present descriptive statistics
+library(psych)
+describe(data)
+```
+
+#inferntial statistics
+
+```{r}
+summary(data)
+```
+
+
+```{r}
+# Create a scatter plot with all columns and add a legend
+par(mfrow = c(1, 1))
+plot(data$Participants, col = "lightblue", pch=16, main = "Scatter Plot of individual observations", xlab = "Participants", ylab="Value")
+points(data$Group, col = "pink", pch=16)
+points(data$`Dependent variable`, col = "lightgreen", pch=16)
+points(data$`Range of group-low`, col = "lightyellow", pch=16)
+points(data$`Range of group-high`, col = "lavender", pch=16)
+legend("topright", c("Participants", "Group", "Dependent variable", "Range of group-low", "Range of group-high"), 
+       fill = c("lightblue", "pink", "lightgreen", "lightyellow", "lavender"), cex=0.8)
+```
+Hypothesis 1
+
+```{r}
+
+# Split data by Group
+split_data <- split(data$`Dependent variable`, data$Group)
+
+# Conduct t-tests for each group
+for (i in 1:length(split_data)) {
+  group <- names(split_data[i])
+  results <- t.test(split_data[[i]])
+  print(paste0("Group ", group, ": t = ", results$statistic, ", p-value = ", results$p.value))
+}
+
+```
+
+hypotheis 2
+```{r}
+# Fit a linear regression model
+model <- lm(`Dependent variable` ~ `Range of group-high`, data = data)
+
+# Get the summary of the model
+summary(model)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
