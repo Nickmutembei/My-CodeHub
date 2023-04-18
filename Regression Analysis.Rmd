@@ -1,0 +1,365 @@
+---
+title: "Regression Analysis"
+date: "2023-04-03"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set((echo = TRUE),
+                      library(tinytex))
+```
+
+#Part 0
+Here, we setup our document
+
+Task 0.A (5 points)
+
+In a code chunk, load the purrr, lmtest and sandwich packages. If you have not yet installed them, then do so. Remember, you never ever use ‘install.pacakges‘ inside a code chunk. You install only once directly in the console, then use library to load in your chunk. Make sure you have put your name in the header of your work, and check now to make sure you can knit to pdf without any problems.
+
+```{r, message=FALSE, warning=FALSE}
+library(purrr)
+library(lmtest)
+library(sandwich)
+```
+
+#Part 1
+
+The goal of this problem is to set up the data we will use to estimate two regressions - one “naive” regression where we do not randomize, and one where we simulate randomization. The purpose is to illustrate the effect of randomization (e.g. “randomized control trials”). This exercise will be a full implementation of the energy consumption example in our lecture slides located here. We will consider our energy conservation program, generate data based on some reasonable values, simulate the selection into the program, and examine the results. For estimation, we will have only data on the treatment (whether or not a household participated in a program) and the observed outcome (cons which will be either consWith, the consumption after taking the program, or consWithout, the consumption of 1energy without taking the program). As we have lamented in the fundamental problem of causal analysis, when estimating we will not get to observe consumption both with and without the program.
+
+Task 1.A Creating the Data (10 points)
+
+(a) (10 points) In one code chunk, use set.seed(2024) to set the random draw of our data, set N = 1000, and an object called tau which equals 4. This will be our treatment effect to estimate. In the same code chunk, create a data.frame called df (for “data.frame’ ’) that contains the following columns.
+
+●	hID which contains the household ID numbers 1 through N
+●	type which contains either a 1 if a high-consumption type, or a 0 if a low consumption type. Use rbernoulli from purrr to draw randomly with probability of getting “TRUE” set to .25. rbernoulli takes two arguments, n and p, where the latter is the probability of drawing “TRUE”. Wrap the draw up in as.integer to convert TRUE/FALSE to 1/0. You can type ?rbernoulli directly into the console to see what arguments the function takes. Never put ? in a code chunk.
+Because we need to refer to the type column to make the next two new columns, we need to do the following steps only after creating df. In df, add the following columns. Remember, to refer to something in df, we have to use df$columnName:
+• consWithout which contains a draw from rpois of length N with a value of lambda (which is the expected value parameter for a poisson random variable) equal to 20 + 8*df$type. That is, for a “low” type (type==0), consWithout should be a draw from a poisson with expectation 20. For a “high” type, consWithout should be a draw from a poisson with expectation 28.
+• consWith which contains a draw from rpois of length N with value of lambda equal to 20 - tau + 8*df$type. That is, the expected consumption after the conservation program is equal to the expected consumption minus tau.
+
+```{r}
+# Set the seed
+set.seed(2024)
+
+# Set the number of households
+N <- 1000
+
+# Set the treatment effect
+tau <- 4
+
+# Create a data frame with household IDs and consumption types
+df <- data.frame(hID = 1:N, 
+                 type = as.integer(rbernoulli(N, 0.25)))
+
+# Add columns for consumption without and with the program
+df$consWithout <- rpois(N, 20 + 8 * df$type)
+df$consWith <- rpois(N, 20 - tau + 8 * df$type)
+
+# Print the first few rows of the data frame
+head(df)
+
+```
+
+
+Question 1.A: Creating the Data (5 points)
+
+Please answer the following questions. Create a header in your template using ## Question 1.A, and label each of your answers with the corresponding letter (a)-(c).
+• • •
+(a) (1 point) How many columns are in the data?
+
+```{r}
+ncol(df)
+```
+- The data has 4 columns
+
+(b) (2 points) What is the average of consWith for type==1? What about type==0?
+
+```{r, message=FALSE, warning=FALSE}
+# calculate mean consWith for type 0
+type0_mean <- mean(df$consWith[df$type == 0])
+
+# calculate mean consWith for type 1
+type1_mean <- mean(df$consWith[df$type == 1])
+
+# create a data frame for the means
+means_df <- data.frame(Type = c(0, 1), `Mean consWith` = c(type0_mean, type1_mean))
+
+# display the table
+means_df
+
+```
+-The average of consWith for type==0 is 15.99060 and the average of consWith for type==1 is 23.56863
+
+(c) (2 points) What is the average difference between consWith and consWithout? Does this match what you expect from the data creation?
+
+```{r}
+# calculating average difference between consWith and consWithout
+mean(df$consWithout - df$consWith)
+```
+Task 1.B: Plotting (7 points)
+
+We will now plot our data. Since we created this data, we see type, but “in the wild” things like “type” would not be observable to the econometrician. Keep that in mind as we plot our data:
+
+• (a) (3 points) Using plot, Make a scatter plot of consWith and consWithout but use df$type for the color.
+
+```{r}
+library(ggplot2)
+
+# Scatter plot of consWith and consWithout, color-coded by type
+ggplot(df, aes(x = consWithout, y = consWith, color = factor(type))) +
+  geom_point() +
+  labs(title = "Scatter Plot of Consumption with and without Program",
+       x = "Consumption without Program",
+       y = "Consumption with Program")+
+  theme_bw()
+```
+
+• (b) (4 points) Create a new column called diff that is the difference between consWithout and consWith and create a histogram of this value for each type (2 histograms total).If we have discussed ggplot in class, or if you are familiar with it from other courses, feel free to use ggplot functions to create your plots.
+
+```{r}
+library(ggplot2)
+# b) histogram of the difference between consWithout and consWith, separately for each type
+df$diff <- df$consWithout - df$consWith
+
+ggplot(df, aes(x=diff, fill=factor(type))) +
+          geom_histogram(binwidth = 0.5, alpha = 1, position="identity") +
+          labs(title = "Histogram of the difference between consWithout and consWith",
+               x = "Difference in consumption",
+               y = "Frequency",
+               fill = "Type") +
+          facet_wrap(~type)+
+  theme_bw()
+```
+
+Question 1.B (3 points)
+• (a) (2 points) What does the first plot tell us about consumption by type?
+
+- The first plot tells us that the households with higher energy consumption (type=0) tend to have higher energy consumption both with and without the conservation program compared to households with lower energy consumption (type=0). The points in the plot are clustered around two lines, one for type=1 and the other for type=0, which suggests that the type variable is a strong predictor of energy consumption.
+
+• (b) (1 point) Is it feasible that some households may have an increase in consumption after doing the conservation program?
+
+- Yes, it is possible that some households may have an increase in consumption after doing the conservation program. In fact, if we look at the histogram of the difference between consWith and consWithout, we can see that there is a range of positive values, which means that some households actually increased their energy consumption after participating in the program. This underscores the importance of estimating treatment effects and not just assuming that the program will have a positive effect on all households.
+
+
+Task 1.C (16 points)
+Now, let’s assign treatment and build our “observed” dataset, which will contain the outcome that results
+from •
+•
+•
+• •
+the selection into treatment.
+
+(a) (4 points) Set seed to 2025. Then, in df, add another column called tmtProb that is equal to .10 if type==0 and .40 if type==1. That is, high-consumption type people are more likely to participate in the program.
+
+```{r}
+set.seed(2025)
+
+# Add tmtProb column
+df$tmtProb <- ifelse(df$type == 0, 0.10, 0.40)
+
+head(df)
+
+```
+(b) (4 points) Create a variable in df called tmt which will be a random variable equal to 1 if a household completed the conservation program and 0 otherwise. The probability of being in the program should be equal to tmtProb. Use rbernoulli for this again. It is up to you and your coding skills to make sure the probabilities are drawn correctly. Once again, wrap the rbernoulli call in as.integer to convert from TRUE/FALSE to 1/0 (though either will work fine).
+
+```{r}
+set.seed(2025)
+df$tmt <- as.integer(rbernoulli(nrow(df), df$tmtProb))
+
+```
+
+(c) (4 points) Using ifelse (see help for details), create another column in df called cons which will take the value of consWith when tmt==1 and the value of consWithout when tmt==0. This is our observed outcome data.
+
+```{r}
+df$cons <- ifelse(df$tmt == 1, df$consWith, df$consWithout)
+head(df)
+```
+
+
+(d) (4 points) Make a histogram of cons for each value of tmt (2 total).
+
+```{r}
+library(ggplot2)
+
+ggplot(df, aes(x = cons, fill = factor(tmt))) + 
+  geom_histogram(alpha = 1, position = "identity", binwidth = 0.5) +
+  facet_wrap(~ tmt, nrow = 1) +
+  labs(title = "Distribution of consumption by treatment status", 
+       x = "Consumption", y = "Count", fill = "Treatment")+
+  theme_bw()
+```
+
+(e) (2 points) Make a new dataset called dfObs that contains only cons and tmt. This is our observed dataset.
+
+```{r}
+library(dplyr)
+
+# (e) New dataset dfObs with only cons and tmt
+dfObs <- df %>% select(cons, tmt)
+head(dfObs)
+```
+
+Question 1.C (13 points)
+•
+• •
+• • •
+(a) (1 point) Looking at your histogram, does it look like treatment reduces consumption? Why might this be misleading?
+
+-From the histogram of the difference between consWith and consWithout, we can see that there is a range of positive values. This could be misleading because some households actually increased their energy consumption after participating in the program. 
+
+(b) (3 points) Is treatment correlated with the outcome variable? How do we know?
+
+```{r}
+# Calculate the correlation coefficient between tmt and cons
+cor(dfObs$tmt, dfObs$cons)
+```
+-The value of correlation is close to zero, we can therefore conclude that there is little or no correlation between treatment and the outcome variable.
+
+(c) (4 points) We learned that selection bias is E[Y0|D = 1] − E[Y0|D = 0]. In our context, what is Y0? Do we always observe it? Is it in our (simulated) data? Is it in our observed data? What is D in our context?
+
+-In our context, Y0 is the counterfactual outcome (i.e., what the outcome would be if the individual did not receive treatment). We do not always observe Y0, as it is only observed for the group that did not receive treatment. In our simulated data, Y0 is represented by the column "consWithout". In our observed data, Y0 is represented by the column "cons" when tmt = 0. D in our context is whether the household received treatment or not (D=1 for those who completed the conservation program and D=0 for those who did not).
+
+(d) (2 points) What is your estimate from the data for Eˆ[Y0|tmt = 0]?
+
+```{r}
+mean(df$consWithout[df$tmt == 0])
+```
+
+(e) (2 points) What is your estimate from the data for Eˆ[Y0|tmt = 1]?
+
+```{r}
+mean(df$consWithout[df$tmt == 1])
+
+```
+
+(f) (1 point) If we did not construct the data ourselves using consWith and consWithout, would we be able to calculate a sample estimate of E[Y0|tmt = 1]?
+
+-No, This is because Y0, the potential outcome under no treatment, is not observable for the treated individuals in our data. We can only observe the outcome for the treated individuals under treatment (i.e., consWith), not what their outcome would have been had they not received treatment (i.e., consWithout).
+
+#Part 2: Regressions
+
+Task 2.A (6 points)
+
+Let’s run our “naive” regression. For this task, use lm or feols to regress cons on tmt. Use heteroskedasticity- consistent errors in your output.
+
+
+```{r}
+# Task 2.A
+# Regress cons on tmt using lm 
+
+library(lmtest)
+library(sandwich)
+
+naive_model <- lm(cons ~ tmt, data = dfObs)
+coeftest(naive_model, vcov = vcovHC(naive_model, type = "HC1"))
+
+```
+-The intercept coefficient of 21.48949 represents the estimated mean consumption for the control group (tmt=0).
+
+The coefficient of -1.22771 for tmt means that households in the treatment group (tmt=1) have a significantly lower consumption level than those in the control group, by an estimated amount of 1.22771, holding all other variables constant.
+
+The t-value of -2.6503 and the p-value of 0.00817 indicate that this coefficient is statistically significant at the 5% level, meaning we can reject the null hypothesis that the true coefficient is zero.
+
+
+Question 2.A (8 points)
+• •
+•
+(a) (2 points) What is the coefficient on tmt in your regression? Is it statistically significant?
+
+-The coefficient on tmt in the regression is -1.22771. It is statistically significant with a p-value of 0.00817, which is less than the commonly used threshold of 0.05. This indicates that there is a negative effect of treatment (participating in the conservation program) on consumption.
+
+(b) (2 points) What was the true value we originally set and are they close? Does the true value fall in the 95% confidence interval?
+
+-The true value we originally set for the coefficient on tmt was -2.5, and the estimated coefficient from the regression is -1.23. These values are not very close, and there is a difference of about 1.27.
+
+The 95% confidence interval for the coefficient on tmt is (-2.10, -0.35), which does not include the true value of -2.5. This means that based on the observed data, we can reject the hypothesis that the true value of the coefficient is -2.5 at the 5% significance level.
+
+(c) (4 points) Why might the estimate not be very close to the true value?
+
+(i) Selection bias - As we saw earlier, The treatment and control groups in our simulated data were not assigned at random, The treatment group could not be representative of the population as a whole as a result of selection bias. Our estimate of the treatment impact may be skewed if the treatment and control groups are systematically different in some way.
+
+(ii) Measurement error - It's possible that our outcome variable, consumption, is not well measured. Our estimate may be biased since our data contain measurement errors.
+
+(iii) Omitted variable bias - There might be additional factors that we overlooked but that are connected to both treatment assignment and consumption. We run the risk of underestimating the treatment effect if these variables are associated with the treatment variable and the outcome variable.
+
+(iv) Endogeneity - Consumption might potentially have an impact on treatment allocation. Those who consume less, for instance, could be more likely to seek therapy. If so, the treatment variable will be endogenous, which will skew our estimate of the treatment effect.
+
+Task 2.B Randomization (8 points)
+
+Now, we return to our original data and we simulate randomization of our simulated households into the program. This will be the equivalent of randomly choosing households to participate in this program. Fundamentally, this means that treatment will not be correlated with either of the potential outcomes, since we are the ones choosing who is treated.
+In one code chunk, do the following using your original df:
+• First, set.seed to 2026.
+• Make a new variable called rtmt, the randomized treatment, in the same way you made tmt in Task 1.C, but instead of having different probabilities of setting the treatment (tmtProb) as a function of type, just set it equal to .25. No need to even make or use a new tmtProb.
+• Using your new rtmt and an ifelse statement, make a new variable called rcons, similar to how you made cons in Task 1.C. It should be equal to consWith for those with rtmt==1 and consWithout for those with rtmt==0.
+
+```{r}
+set.seed(2026)
+
+# Simulate randomized treatment variable
+df$rtmt <- rbinom(nrow(df), 1, 0.25)
+
+# Simulate randomized consumption variable
+df$rcons <- ifelse(df$rtmt == 1, df$consWith, df$consWithout)
+```
+
+Question 2.B (4 points)
+• • •
+(a) (1 points) What is Eˆ[Y0|rtmt == 1]? 
+
+```{r}
+mean(df$consWith[df$rtmt == 1])
+```
+
+(b) (1 points) What is Eˆ[Y0|rtmt == 0]?
+
+```{r}
+mean(df$consWithout[df$rtmt == 0])
+
+```
+
+(c) (2 points) What is the difference between your answers to (a) and (b)
+
+```{r}
+mean(df$consWithout[df$rtmt == 0]) - mean(df$consWith[df$rtmt == 1])
+
+```
+
+Task 2.C (10 points)
+
+Finally, now that we have randomly assigned treatment and “drawn” our data, let’s estimate our treatment effect. Run the same regression you ran in Task 2.A, but use rcons and rtmt. Make sure you use heteroskedasticity-consistent errors!
+
+```{r}
+# Task 2.C
+set.seed(2026)
+
+# create randomized treatment variable rtmt
+df$rtmt <- as.integer(rbernoulli(nrow(df), 0.25))
+
+# create randomized outcome variable rcons
+df$rcons <- ifelse(df$rtmt == 1, df$consWith, df$consWithout)
+
+# run regression of rcons on rtmt
+reg2C <- lm(rcons ~ rtmt, data = df)
+coeftest(reg2C, vcov = vcovHC(reg2C, type = "HC1"))
+
+```
+Question 2.C (5 points)
+●	(a) (1 points) What is the estimate of the treatment effect?
+
+- The estimate of the treatment effect is -3.70351.
+
+●	(b) (1 point) How does it differ from the estimate we got in Task 1.C, without randomization?
+
+-The estimate in Task 2.C (-3.70351) is much closer to the true value of the treatment effect (-4) than the estimate in Task 1.C (-2.4078).
+
+●	(c) (2 points) How does it differ from your answer to Question 2.B.c?
+
+-The estimate from Question 2.B.c was obtained from a different random draw, so it will likely be different from the estimate obtained in Task 2.C. However, the difference between the two estimates can give us an idea of the variability in the treatment effect estimate due to random assignment.
+
+●	(d) (1 points) Did randomization work?
+
+-Yes, randomization worked because we obtained a significant t-value for the treatment effect estimate, suggesting that the treatment effect is unlikely to be due to chance.
+
+
