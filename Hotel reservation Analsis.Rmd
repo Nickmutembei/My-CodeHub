@@ -1,0 +1,337 @@
+---
+title: "Hotel Reservations"
+date: "2023-04-08"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+[1.1] Import the Hotel Reservations data into a temporary dataset `hotel` 
+*/
+
+#steps
+
+1.Open RStudio or any R environment you are using.
+2.Set the working directory to the location where the "hotel_reservations.csv" file is saved. You can do this using the setwd() function. For example, if the file is saved in the "Documents" folder of your computer, you can set the working directory as follows:setwd("~/Documents")
+3.Install the 'readr' package and load it into the Rworkspace
+4.Load the "hotel_reservations.csv" file into R using the read.csv() function and store it in a temporary dataset called hotel. 
+
+```{r, message=FALSE, warning=FALSE}
+library(readr)
+hotel <- read_csv("C:/Users/Admins/Pictures/Hotel+Reservations.csv")
+```
+
+
+
+/*
+[1.2] Check the imported data. Show which variables contain the booking date, and their format.
+*/
+
+#The str function can be used to show  variables that contain the booking date, and their format.
+
+```{r}
+
+str(hotel)
+
+```
+
+
+
+/* 
+[1.3] Create a new variable `arrival` that contains a SAS date made out of arrival_month, arrival_date, arrival_year and assign a permanent date format to the new variable
+*/
+
+```{r,message=FALSE, warning=FALSE}
+library(lubridate)
+
+# Combine arrival_month, arrival_date, and arrival_year into a new variable called arrival
+hotel$arrival <- mdy(paste(hotel$arrival_month, hotel$arrival_date, hotel$arrival_year, sep = "/"))
+
+# Format arrival as "MM/DD/YYYY" and convert it back to a date object with the same format
+hotel$arrival <- as.Date(format(hotel$arrival, "%m/%d/%Y"), "%m/%d/%Y")
+
+# Assign a permanent date format to the arrival variable (optional)
+attr(hotel$arrival, "format") <- "%m/%d/%Y"
+
+# Save the modified data frame to a new file (optional)
+write.csv(hotel, "modified_data.csv", row.names = FALSE)
+
+```
+
+
+/* 
+[1.4] To check your calculation, print arrival arrival_year arrival_month arrival_date for the first 10 rows of `hotel` dataset
+*/
+
+```{r}
+head(hotel[, c("arrival", "arrival_year", "arrival_month", "arrival_date")], 10)
+```
+
+
+
+/* 
+[1.5] Calculate the number of bookings for each quarter (e.g. 2017/3, 2017/4, ...) only for bookings where the booking status is "Not_Canceled" hint: apply a temporary date format to arrival so it's displayed as 2017/4 instead of 02OCT2017
+	(any date format that generates quarters is fine) Show the number and percentage of bookings for each quarter.
+*/
+
+```{r}
+library(lubridate)
+
+# Create a new column called "quarter" containing the quarter of the year for each booking
+hotel$quarter <- quarter(hotel$arrival)
+
+# Filter the data to include only "Not_Canceled" bookings
+hotel_nc <- hotel[hotel$booking_status == "Not_Canceled", ]
+
+# Calculate the number of bookings for each quarter
+bookings_by_quarter <- table(hotel_nc$quarter, hotel_nc$arrival_year)
+
+# Apply a temporary date format to arrival for display purposes
+hotel_nc$arrival_temp <- format(hotel_nc$arrival, format = "%Y/%q")
+
+# Calculate the total number of not canceled bookings
+total_bookings <- nrow(hotel_nc)
+
+# Calculate the percentage of bookings for each quarter
+perc_by_quarter <- prop.table(bookings_by_quarter) * 100
+
+# Print the number and percentage of bookings for each quarter
+cat(sprintf("%-9s %-13s %-10s %-10s\n", "Quarter", "Arrival Year", "Bookings", "Percentage"))
+for (i in 1:nrow(bookings_by_quarter)) {
+  cat(sprintf("%-9s %-13s %-10d %-10.2f\n",
+              rownames(bookings_by_quarter)[i],
+              colnames(bookings_by_quarter)[i],
+              bookings_by_quarter[i],
+              perc_by_quarter[i]))
+}
+cat(sprintf("\nTotal number of not canceled bookings: %d\n", total_bookings))
+
+
+```
+
+
+/* 
+[1.6] Print rows where arrival is missing, see if there's a pattern
+*/
+
+```{r}
+missing_arrival <- hotel[is.na(hotel$arrival), ]
+print(missing_arrival)
+```
+
+
+/*
+[1.7] Remove rows from `hotel` where arrival is missing then re-run the table from Q1.5 to confirm.
+*/
+
+```{r}
+library(zoo)
+hotel_clean <- hotel[!is.na(hotel$arrival), ]
+hotel_clean$arrival_qtr <- as.yearqtr(hotel_clean$arrival, "%Y/%q")
+table(hotel_clean$arrival_qtr, useNA = "always")
+
+```
+
+/* 
+Make a results table showing the average price of each room typein order of frequencyalso showing minimum, median, and maximum 
+*/
+
+```{r}
+library(dplyr)
+
+# create summary table of room types and prices
+room_prices <- hotel_clean %>%
+  group_by(room_type_reserved) %>%
+  summarize(num_bookings = n(),
+            avg_price = mean(avg_price_per_room),
+            min_price = min(avg_price_per_room),
+            med_price = median(avg_price_per_room),
+            max_price = max(avg_price_per_room)) %>%
+  arrange(desc(num_bookings))
+
+# print results table
+print(room_prices)
+
+
+```
+
+/* 
+[1.8] Room types 1 and 4 are the most common Rename them with a custom format
+	Room_Type 1: Budget
+	Room_Type 4: City View
+	others	   : Other
+Group the other room types together Apply the format permanently to the `hotel` dataset
+*/
+
+```{r}
+# create custom format for room types
+room_format <- function(x) {
+  ifelse(x == 1, "Budget", 
+         ifelse(x == 4, "City View", "Other"))
+}
+
+# rename room types and group other room types together
+hotel_clean$room_type <- room_format(hotel_clean$room_type_reserved)
+
+# apply custom format permanently to hotel_clean
+attr(hotel_clean$room_type, "format") <- "character"
+
+```
+
+
+/* 
+Calculate detailed statistics for Budget and City View rooms and find out what winsorising the most extreme 10% of values would do
+*/
+
+```{r}
+library(DescTools)
+
+# create separate datasets for Budget and City View rooms
+budget <- hotel_clean[hotel_clean$room_type == "Budget", ]
+city_view <- hotel_clean[hotel_clean$room_type == "City View", ]
+
+# calculate detailed statistics for Budget and City View rooms
+budget_stats <- summary(budget$avg_price_per_room)
+city_view_stats <- summary(city_view$avg_price_per_room)
+
+```
+
+1. Define 4 macro variables: type_1_p05 type_1_p95 type_4_p05 type_4_p95
+
+```{r}
+# Extract data for Room Type 1
+room_type_1 <- subset(hotel, room_type_reserved == "Budget")
+type_1_p05 <- quantile(room_type_1$avg_price_per_room, 0.05)
+type_1_p95 <- quantile(room_type_1$avg_price_per_room, 0.95)
+
+# Extract data for Room Type 4
+room_type_4 <- subset(hotel, room_type_reserved == "City View")
+type_4_p05 <- quantile(room_type_4$avg_price_per_room, 0.05)
+type_4_p95 <- quantile(room_type_4$avg_price_per_room, 0.95)
+
+```
+
+2. Set type_1_p05 and type_1_p95 to the 5% and 95% values for Room_Type 1 (Budget)
+
+```{r}
+# Extract data for Room Type 1
+room_type_1 <- subset(hotel, room_type_reserved == "Budget")
+
+# Calculate 5th and 95th percentiles for Room Type 1
+type_1_p05 <- quantile(room_type_1$avg_price_per_room, 0.05)
+type_1_p95 <- quantile(room_type_1$avg_price_per_room, 0.95)
+
+# Set macro variables
+assign("type_1_p05", type_1_p05)
+assign("type_1_p95", type_1_p95)
+
+
+```
+
+3. Set type_4_p05 and type_4_p95 to the 5% and 95% values for Room_Type 4 (City View)
+
+```{r}
+# Extract data for Room Type 4
+room_type_4 <- subset(hotel, room_type_reserved == "City View")
+
+# Calculate 5th and 95th percentiles for Room Type 4
+type_4_p05 <- quantile(room_type_4$avg_price_per_room, 0.05)
+type_4_p95 <- quantile(room_type_4$avg_price_per_room, 0.95)
+
+# Set macro variables
+assign("type_4_p05", type_4_p05)
+assign("type_4_p95", type_4_p95)
+
+```
+
+4. Using one DATA step:
+4a. Make a new dataset `hotel_winsorized`
+
+```{r}
+library(dplyr)
+
+hotel_winsorized <- hotel %>%
+  mutate(winsorized_price = ifelse(room_type_reserved == "Budget",
+                                   pmax(type_1_p05, pmin(avg_price_per_room, type_1_p95)),
+                                   ifelse(room_type_reserved == "City View",
+                                          pmax(type_4_p05, pmin(avg_price_per_room, type_4_p95)),
+                                          avg_price_per_room))) %>%
+  filter(winsorized_price >= type_1_p05 & winsorized_price <= type_1_p95 | 
+           winsorized_price >= type_4_p05 & winsorized_price <= type_4_p95)
+
+```
+
+4b. Using one multiple conditional processing clause AND YOUR MACRO VARIABLES:
+	For "Room_Type 1" rows, 
+		if avg_price_per_room is below the p05 cutoff, set it to p05 for room type 1
+		if avg_price_per_room is above the p95 cutoff, set it to p95 for room type 1
+	For "Room_Type 4" rows,
+		if avg_price_per_room is below the p05 cutoff, set it to p05 for room type 4
+		if avg_price_per_room is above the p95 cutoff, set it to p95 for room type 4
+		
+```{r}
+# set p05 and p95 cutoffs for each room type
+type_1_p05 <- quantile(hotel_winsorized$avg_price_per_room[hotel_winsorized$room_type_reserved == "Budget"], probs = 0.05)
+type_1_p95 <- quantile(hotel_winsorized$avg_price_per_room[hotel_winsorized$room_type_reserved == "Budget"], probs = 0.95)
+type_4_p05 <- quantile(hotel_winsorized$avg_price_per_room[hotel_winsorized$room_type_reserved == "City View"], probs = 0.05)
+type_4_p95 <- quantile(hotel_winsorized$avg_price_per_room[hotel_winsorized$room_type_reserved == "City View"], probs = 0.95)
+
+# create a copy of the original dataset
+hotel_winsorized_processed <- hotel_winsorized
+
+# apply conditional processing using macro variables
+hotel_winsorized_processed$avg_price_per_room[hotel_winsorized_processed$room_type_reserved == "Budget" & hotel_winsorized_processed$avg_price_per_room < type_1_p05] <- type_1_p05
+hotel_winsorized_processed$avg_price_per_room[hotel_winsorized_processed$room_type_reserved == "Budget" & hotel_winsorized_processed$avg_price_per_room > type_1_p95] <- type_1_p95
+hotel_winsorized_processed$avg_price_per_room[hotel_winsorized_processed$room_type_reserved == "City View" & hotel_winsorized_processed$avg_price_per_room < type_4_p05] <- type_4_p05
+hotel_winsorized_processed$avg_price_per_room[hotel_winsorized_processed$room_type_reserved == "City View" & hotel_winsorized_processed$avg_price_per_room > type_4_p95] <- type_4_p95
+
+```
+		
+4c. Only put rows into hotel_winsorized if they are for Budget or City View bookings
+*/
+
+```{r}
+hotel_winsorized <- hotel_winsorized[hotel_winsorized$room_type_reserved %in% c("Budget", "City View"), ]
+
+```
+
+
+/*
+Calculate the final price range after winsorizing Produce one result table with the minimum, mean, and maximum values of avg_price_per_room With one row for Budget and one row for City View Apply a temporary label to room_type_reserved so it looks nice
+*/
+
+```{r, message=FALSE, warning=FALSE}
+# Create a label for room_type_reserved
+hotel_winsorized$room_type_label <- ifelse(hotel_winsorized$room_type_reserved == 1, "Budget", 
+                                           ifelse(hotel_winsorized$room_type_reserved == 4, "City View", "Other"))
+
+# Calculate final price range after winsorizing
+final_price_range <- hotel_winsorized %>%
+  group_by(room_type_label) %>%
+  summarise(
+    Label = first(room_type_label),
+    Min = min(avg_price_per_room),
+    Mean = mean(avg_price_per_room),
+    Max = max(avg_price_per_room),
+    P05 = ifelse(room_type_label == "Budget", type_1_p05, type_4_p05),
+    P95 = ifelse(room_type_label == "Budget", type_1_p95, type_4_p95)
+  )
+final_price_range <- hotel_winsorized %>%
+  group_by(room_type_label) %>%
+  summarise(
+    Label = first(room_type_label),
+    Min = min(avg_price_per_room),
+    Mean = mean(avg_price_per_room),
+    Max = max(avg_price_per_room)
+  )
+
+# Print the result table
+final_price_range
+
+```
+
+
