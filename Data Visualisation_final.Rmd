@@ -1,0 +1,235 @@
+---
+title: "Data Visualisations"
+author: "Essa Taher"
+date: "2023-04-16"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=TRUE, warning=FALSE}
+setwd("C:/Users/Admins/Desktop")
+library(readr)
+real_est<-read_csv("ProjectRealEstate_.csv")
+```
+
+## Data Cleaning
+
+```{r}
+real_est<-real_est[,-c(21:24)]
+
+real_est$price<-as.numeric(gsub(",","",real_est$price))
+
+real_est$statusText[real_est$statusText=="ACTIVE"]<-"Active"
+```
+
+## Data Visualisations
+
+### Plot 1
+
+```{r}
+real_est %>% 
+  group_by(addressCity) %>% 
+  summarise(Listings=n()) %>% 
+  top_n(10) %>% 
+  ggplot(aes(x=reorder(addressCity,Listings,decreasing = F),y=Listings))+
+  geom_bar(stat = "identity",fill="#1E3256")+
+  labs(x="City",title = "Top 10 Cities with Highest Listings")+
+  geom_text(aes(label=Listings),hjust=-0.1)+
+  ylim(0,6500)+
+  coord_flip()
+```
+
+### Plot 2
+
+```{r}
+real_est %>% 
+  group_by(addressState) %>% 
+  summarise(Listings=n()) %>% 
+  top_n(10) %>% 
+  ggplot(aes(x=reorder(addressState,Listings,decreasing = F),y=Listings))+
+  geom_bar(stat = "identity",fill="#1E3256")+
+  labs(x="States",title = "Top 10 States with Highest Listings")+
+  geom_text(aes(label=Listings),hjust=-0.1)+
+  ylim(0,25000)+
+  coord_flip()
+```
+
+### Plot 3
+
+```{r}
+options(scipen = 999)
+real_est %>% 
+  filter(homeType!="") %>% 
+  ggplot(aes(x=homeType,y=log(price)))+
+  geom_boxplot()+
+  coord_flip()+
+  labs(x="Home Type",y="log(Price)",title = "Boxplots of log(Price) by Home Type")
+```
+
+
+### Plot 4
+
+```{r}
+real_est %>% 
+  filter(homeType!="") %>% 
+  group_by(homeType) %>% 
+  summarise(Avg.Price = round(mean(price,na.rm = T),2)) %>% 
+  ggplot(aes(x=reorder(homeType,Avg.Price),y=Avg.Price))+
+  geom_bar(stat = "identity",fill="#1E3256")+
+  labs(x="Home Type",title = "Average Price of Different Home Types",y="Average Price")+
+  geom_text(aes(label=Avg.Price),hjust=-0.1)+
+  ylim(0,1100000)+
+  coord_flip()
+```
+
+### Plot 5
+
+```{r}
+real_est %>% 
+  filter(price<100000000 & area <400000) %>% 
+  ggplot(aes(x=area,y=price))+
+  geom_point(alpha=0.5)+
+  geom_smooth(method = lm)+
+  labs(x="Area",y="Price",title = "Relationship between Area and Price",
+       subtitle = "Price less than 100000000 and Area less than 400000")
+```
+
+### Plot 6
+
+```{r, fig.height=10}
+counts <- table(real_est$homeType[real_est$homeType!=""])
+lbls <- paste(rownames(counts),
+              '',
+              round(counts / sum(counts), 4) * 100,
+              '%') 
+pie(counts, labels = lbls, col = c("black","#1E3256","#5D5D50","#5D5D5D","#B2B2B2", "#DDDDDD","#DDDDD0"),
+    main = 'Percentages of Listings by Home Type',cex=.6)
+
+```
+
+### Plot 7
+
+```{r}
+real_est %>% 
+  filter(price<100000000 & beds <150) %>% 
+  ggplot(aes(x=beds,y=price))+
+  geom_point(alpha=0.5)+
+  geom_smooth(method = lm)+
+  labs(x="Number of Beds",y="Price",title = "Relationship between Number of Beds and Price",
+       subtitle = "Price less than 100000000 and Beds less than 150")
+```
+
+
+### Plot 8
+
+```{r}
+real_est %>% 
+  filter(price<100000000 & baths <100) %>% 
+  ggplot(aes(x=baths,y=price))+
+  geom_point(alpha=0.5)+
+  geom_smooth(method = lm)+
+  labs(x="Number of Baths",y="Price",title = "Relationship between Number of Baths and Price",
+       subtitle = "Price less than 100000000 and Baths less than 100")
+```
+
+### Plot 9
+
+```{r}
+real_est %>% 
+  group_by(statusText) %>% 
+  summarise(Listings=n()) %>% 
+  top_n(10) %>% 
+  ggplot(aes(x=reorder(statusText,Listings,decreasing = F),y=Listings))+
+  geom_bar(stat = "identity",fill="#1E3256")+
+  labs(x="Status Text",title = "Top 10 Status Text with Highest Listings")+
+  geom_text(aes(label=Listings),hjust=-0.1)+
+  ylim(0,65000)+
+  coord_flip()
+```
+
+### Plot 10
+
+```{r}
+real_est %>% 
+  filter(price<100000000 & lotAreaRaw <100000000) %>% 
+  ggplot(aes(x=lotAreaRaw,y=price))+
+  geom_point(alpha=0.5)+
+  geom_smooth(method = lm)+
+  labs(x="Lot Area",y="Price",title = "Relationship between Number of Lot Area and Price",
+       subtitle = "Price less than 100000000 and Lot Area less than 100000000")
+```
+
+### plot 11
+
+```{r}
+library(ggplot2)
+
+# create a new data frame with the counts of each state
+state_counts <- data.frame(table(real_est$addressState))
+
+# create a pie chart of the state counts
+ggplot(state_counts, aes(x="", y=Freq, fill=Var1)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar(theta="y") +
+  labs(title="State Distribution", x=NULL, y=NULL) +
+  scale_fill_discrete(name="State")
+
+# create a new data frame with the counts of each city
+city_counts <- data.frame(table(real_est$addressCity))
+
+# create a pie chart of the city counts
+ggplot(city_counts, aes(x="", y=Freq, fill=Var1)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar(theta="y") +
+  labs(title="City Distribution", x=NULL, y=NULL) +
+  scale_fill_discrete(name="City")
+
+```
+
+### plot 12
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+
+# create a new data frame with the counts of each state
+state_counts <- data.frame(table(real_est$addressState))
+
+# create a pie chart of the state counts
+state_pie <- ggplot(state_counts, aes(x="", y=Freq, fill=Var1)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar(theta="y") +
+  labs(title="State Distribution", x=NULL, y=NULL) +
+  scale_fill_discrete(name="State") +
+  theme_void()
+
+# create a new data frame with the counts of each city
+city_counts <- data.frame(table(real_est$addressCity))
+
+# create a pie chart of the city counts
+city_pie <- ggplot(city_counts, aes(x="", y=Freq, fill=Var1)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar(theta="y") +
+  labs(title="City Distribution", x=NULL, y=NULL) +
+  scale_fill_discrete(name="City") +
+  theme_void()
+
+# create a new data frame with the counts of price
+price_counts <- data.frame(table(cut(real_est$price, breaks = seq(0, 2000000, by = 50000))))
+
+# create a pie chart of the price counts
+price_pie <- ggplot(price_counts, aes(x="", y=Freq, fill=Var1)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar(theta="y") +
+  labs(title="Price Distribution", x=NULL, y=NULL) +
+  scale_fill_brewer(name="Price", palette="Blues") +
+  theme_void()
+
+# arrange the pie charts in a grid
+grid.arrange(state_pie, city_pie, price_pie, ncol=3)
+
+```
+
