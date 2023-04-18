@@ -8,7 +8,7 @@ output:
       smooth_scroll: yes
       collapse_button_text: "Click to show/hide code"
 
-     
+  bibliography : 'URL'   
 ---
 
 ```{r, echo=FALSE, eval=FALSE, showtext=TRUE}
@@ -29,6 +29,7 @@ library(tidyverse)
 # Importing the dataset
 
 ```{r, message=FALSE, warning=FALSE}
+library(readr)
 data <- read_csv("C:/Users/Admins/Desktop/parkinsons.csv")
 data$name<- NULL
 ```
@@ -188,3 +189,7 @@ To identify the best model between the Knn and the linear regression model, we u
 
 Conclusion :
 the Parkinson’s disease data set provides several insights into the characteristics of individuals with and without Parkinson’s disease. A higher mean fundamental frequency, higher values of jitter and shimmer, and positive associations between these variables and the presence of Parkinson’s disease suggest that they may be useful indicators of Parkinson’s disease. Further analysis and modeling is necessary to determine the strength of these associations and the utility of these variables in predicting Parkinson’s disease.
+
+references
+
+https://api.citedrive.com/bib/dc64ec6f-3d25-480a-9add-b702bb9d2faa/references.bib?x=eyJpZCI6ICJkYzY0ZWM2Zi0zZDI1LTQ4MGEtOWFkZC1iNzAyYmI5ZDJmYWEiLCAidXNlciI6ICIyNzQ2IiwgInNpZ25hdHVyZSI6ICIxODA1ZmZlMzhlMzI3YTUyNzAwYThlMDUzY2RlN2RiMWJkM2E4NzNmNTA3NjI3ZTA3YWU0MzI1MWVjMjE5ODcwIn0=/bibliography.bib
