@@ -1,0 +1,233 @@
+---
+title: "speedDating"
+date: "2023-04-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+library(readr)
+data <- read_csv("C:/Users/Admins/Pictures/Camera Roll/speedDating.csv")
+names(data)
+```
+
+
+# Assessment of the data and Descriptive statistics
+
+```{r}
+# Check for missing values
+sum(is.na(data))
+summary(data)
+
+```
+
+
+
+```{r}
+table(data$sex)
+```
+
+
+```{r}
+cor_table <- cor(data[c("age", "rc")])
+cat("Correlation Table for: Age and RC\n")
+print(cor_table, 
+      row.names = c("Age", "RC"), 
+      col.names = c("Age", "RC"), 
+      digits = 4)
+
+```
+
+Principal component analysis (PCA) which is part of the Exploratory Data Analysis(EDA)
+
+```{r}
+
+# Perform PCA on age and rc columns
+pca <- prcomp(data[, c("age", "rc")], scale = TRUE)
+
+# View the results
+summary(pca)
+
+```
+Linear regression model table
+
+```{r}
+# Run a linear regression model for rc using age and sex as predictors
+model <- lm(rc ~ age + sex, data = data)
+
+# Create a summary table for the model coefficients
+coef_table <- summary(model)$coefficients
+coef_table
+```
+
+
+```{r}
+model <- lm(rc ~ sex + rotate, data = data)
+summary(model)
+
+```
+
+ANOVA(analysis of variance) table
+
+```{r}
+# Analysis of variance of rc on rotate
+model <- aov(rc ~ rotate, data = data)
+summary(model)
+
+```
+
+Graphical tools to explore the relationship between variables
+
+1. Relationship between Response by Gender
+
+
+```{r, message=FALSE, warning=FALSE}
+# Scatter plot of age by response
+ggplot(data, aes(x = age, y = rc)) +
+  geom_jitter(aes(color = sex), alpha = 0.5) +
+  scale_color_manual(values = c("#1F78B4", "#E31A1C")) +
+  xlim(18, 60) +
+  theme_bw()+
+  labs(title = "Relationship between Response by Gender")
+
+```
+2. Relationship between Age and Rating Count by Gender
+
+```{r}
+# Create a boxplot
+ggplot(data, aes(x = sex, y = rc, fill = sex)) +
+  geom_boxplot() +
+  labs(x = "Gender", y = "Rating Count", title = "Relationship between Age and Rating Count by Gender")
+
+```
+3. Distribution of Age by Gender
+
+```{r}
+ggplot(data, aes(x = age, fill = sex)) +
+  geom_histogram(binwidth = 2, alpha = 0.5) +
+  facet_wrap(~ sex, ncol = 2) +
+  labs(x = "Age", y = "Count", title = "Distribution of Age by Gender")+ theme_bw()
+
+```
+4. Density plot of age by sex
+
+```{r}
+# Density plot of age by sex
+ggplot(data, aes(x = age, fill = sex)) +
+  geom_density(alpha = 0.5) +
+  xlim(18, 60) +
+  theme_bw()+
+  labs(title = "Density plot of age by sex")
+```
+Plot of sex frequency 
+
+```{r}
+library(ggplot2)
+
+# Create a bar plot of sex frequency
+ggplot(data, aes(x = sex, fill = sex)) +
+  geom_bar() +
+  scale_fill_manual(values = c("blue", "pink")) +
+  xlab("Sex") +
+  ylab("Frequency") +
+  ggtitle("Frequency of Males and Females")
+
+```
+
+
+```{r}
+# Create a bar plot of rotation frequency by sex
+ggplot(data, aes(x = sex, fill = rotate)) +
+  geom_bar(position = "stack") +
+  scale_fill_manual(values = c("blue", "pink")) +
+  xlab("Sex") +
+  ylab("Frequency") +
+  ggtitle("Frequency of Rotation by Sex")
+
+```
+
+
+```{r}
+table(data$sex)
+table(data$rotate)
+summary(data$age)
+mean_age = mean(data$age);mean_age# the average age is 19years
+```
+
+frquency distribution using histgoram for rating
+
+```{r}
+# frquency distribution using histgoram for rating
+ggplot(data, aes(x=rc))+
+  geom_area(aes(y=..count..), bins = 30, stat = 'bin', fill='steelblue')+
+theme_bw()+
+  labs(title = "Frequency distribution for the average romantic chemistry rating of respondents")
+```
+
+
+```{r}
+# Aggregate rc column by sex
+rc_by_sex <- aggregate(rc ~ sex, data = data, FUN = sum)
+
+# View aggregated data
+rc_by_sex
+
+```
+
+
+```{r}
+#section 2
+# effect size calculations
+n = nrow(data);n
+dataa = data.frame(data)
+male =dataa[dataa$sex == "m",]
+sum(male$rc)
+female =dataa[dataa$sex == "f",]
+sum(female$rc)
+n_s = nrow(male)
+female = dataa[dataa$sex == "f", ]
+mean_male = mean(male$rc);mean_male
+mean_female = mean(female$rc); mean_female
+variance_male = var(male$rc)
+variance_female = var(female$rc)
+effect = mean_male-mean_female; effect
+n1 = nrow(male)-1
+n2 = nrow(female)-1
+N = n1+n2-2
+x = n1*variance_male
+y = n2*variance_female
+effectSE = sqrt((x+y)/N)
+effectsize = effect/effectSE; effectsize
+#CI
+df = n-1
+w <- effectSE * qt(0.975, df)
+effect-w
+effect+w
+
+effectM = sum(var(male$rc));effectM
+effectSE_M = sqrt( effectM / n_s)
+
+effectF = sum(var(female$rc));effectF
+effectSE_F = sqrt( effectF / n_s)
+
+wC <- effectSE_M * qt(0.975, df)
+wA <- effectSE_F * qt(0.975, df)
+wC; wA
+# CIs
+effectM - wC ; effectM + wC
+effectF - wA ; effectF + wA
+
+#CI
+
+s <- data.frame( sex = c('m', 'f'),
+                 eff = c(effectM, effectF),
+                 lo = c(effectM - wC, effectF - wA),
+                 hi = c(effectM + wC, effectF + wA))
+s$sex <- factor(s$sex, level = c('m', 'f'))
+```
+
+
