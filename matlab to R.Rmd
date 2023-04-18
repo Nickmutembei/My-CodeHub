@@ -1,0 +1,56 @@
+---
+title: "Matlab recode in R"
+date: "3/22/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(quantmod)
+library(tidyverse)
+
+# Define the stocks
+stocks <- c("ACI", "AEM", "BTU", "CNQ", "CNX", "HAL", "NOV", "OXY", "PEO")
+
+# Download the stock prices
+getSymbols(stocks, from = "2022-01-01", to = "2022-12-31")
+
+# Merge stock prices into a data frame
+Energy_prices <- merge(Ad(ACI), Ad(AEM), Ad(BTU), Ad(CNQ), Ad(CNX), Ad(HAL), Ad(NOV), Ad(OXY), Ad(PEO))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
