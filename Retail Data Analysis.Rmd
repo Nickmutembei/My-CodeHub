@@ -1,0 +1,165 @@
+---
+title: 'Minería de datos: PEC1'
+author: "Autor: Nombre estudiante"
+date: "marzo 2023"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+    includes:
+      in_header: 75.584-PEC-header.html
+  word_document: default
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+---
+**
+# Exercises
+**
+
+## Exercise 1:
+
+Propose a complete data mining project. The organization of the response has to coincide in the typical phases of the life cycle of a data mining project. *You do not have to perform the tasks of the phase*. For each phase, indicate the objective of the phase and the product to be obtained. Use examples of what and how the tasks could be. If there is any characteristic that makes the life cycle of a mining project different from other projects, indicate it.
+
+
+> The aim is to construct a prediction model to determine the likelihood of a fatal accident based on the available data and to study the elements that lead to fatal motor vehicle accidents.
+
+1.Business Understanding: This phase's goals are to specify the issue statement, pinpoint the company's objectives, and ascertain how data mining might assist in achieving those objectives. This step should result in a clear knowledge of the issue and how the information can be used to address it. In order to assist in the development of policies to lower the number of fatalities, one possible objective of this phase may be to identify the most frequent causes of fatal motor vehicle accidents.
+
+2. Data Understanding: Gathering and comprehending the data that will be utilized for analysis are the goals of this phase. A well-defined dataset with all pertinent features, each fully described and recorded, should be the end result of this phase. In this stage, for instance, one may investigate the distribution of the "FATALS" characteristic, which denotes the quantity of fatalities in a specific accident.
+
+3.Data Preparation: This stage's goal is to clean up and preprocess the data in order to get it ready for analysis. An organized dataset suitable for modeling should be the end result of this phase. For instance, one may perform feature selection, normalize the data, and eliminate any missing values during this stage.
+
+4. Building a prediction model that can precisely anticipate the possibility of a catastrophic accident is the goal of this phase. This phase should result in a model that can be applied to forecast the outcome of fresh data. For instance, depending on the provided attributes, a logistic regression model may be used to estimate the likelihood of a catastrophic accident.
+
+5.Evaluation: The goal of this stage is to assess the model's effectiveness and assess whether it achieves the desired business outcomes. This phase should result in a report that evaluates the model's performance, points out any flaws or restrictions, and makes suggestions for how to make the model better. One may, for instance, assess the model's precision, recall, and F1-score and contrast them to industry standards.
+
+6. Deployment: The goal of this stage is to put the model into use so that it can forecast the outcome of new data. A well-documented, user-friendly model that can be incorporated into the organization's current systems should be the end result of this phase. For instance, the model may be made available as a RESTful API that other programs could use.
+
+
+## Exercise 2:
+Using the data set used in the previous example, perform the tasks prior to generating a data mining model explained in the modules "The data mining process" and "Data preprocessing and feature management". You can use the previous example as a reference, but try to change the approach and analyze the data based on the different dimensions that the data presents. Optionally and valuable, data from other years can be added to the study to make temporary comparisons (https://www.nhtsa.gov/file-downloads?p=nhtsa/downloads/FARS/) or add other related facts to study, for example , drug use in accidents (https://static.nhtsa.gov/nhtsa/downloads/FARS/2020/National/FARS2020NationalCSV.zip)
+
+
+```{r}
+library(readr)
+path = "C:/Users/Admins/Desktop/accident.CSV"
+accidentData <- read.csv(path, row.names=NULL)
+names(accidentData)
+```
+
+
+>Exploratory Data Analysis
+
+```{r}
+# Explore the data
+library(psych)
+
+describe(accidentData)
+```
+# Data cleaning 
+
+1. Checking for missing values and duplicated values
+
+```{r}
+# Check for missing or null values
+sum(is.na(accidentData))
+
+# Check for duplicates
+sum(duplicated(accidentData))
+```
+From the results obtained above, the data has no missing or duplicated values
+
+> Univariate Analysis
+
+```{r, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(gridExtra)
+
+# Create histogram for VE_TOTAL
+p1 <- ggplot(accidentData, aes(x = VE_TOTAL)) +
+  geom_histogram(fill = "cornflowerblue", color = "black", bins = 20) +
+  ggtitle("Distribution of VE_TOTAL") +theme_bw()
+
+# Create histogram for PERSONS
+p2 <- ggplot(accidentData, aes(x = PERSONS)) +
+  geom_histogram(fill = "darkorange", color = "black", bins = 20) +
+  ggtitle("Distribution of PERSONS")+theme_bw()
+
+# Arrange the plots side by side
+grid.arrange(p1, p2, ncol = 2)
+
+
+```
+
+```{r}
+library(ggplot2)
+
+# Create density plots for VE_TOTAL and PERSONS
+p1 <- ggplot(accidentData, aes(x = VE_TOTAL)) +
+  geom_density(fill = "blue", color = "black") +
+  ggtitle("Density Plot of VE_TOTAL") +
+  theme(plot.title = element_text(size = 14)) +
+  theme(plot.background = element_rect(fill = "white")) +
+  theme(panel.background = element_rect(fill = "white"))
+
+p2 <- ggplot(accidentData, aes(x = PERSONS)) +
+  geom_density(fill = "orange", color = "black") +
+  ggtitle("Density Plot of PERSONS") +
+  theme(plot.title = element_text(size = 14)) +
+  theme(plot.background = element_rect(fill = "white")) +
+  theme(panel.background = element_rect(fill = "white"))
+
+# Arrange plots side by side
+library(gridExtra)
+grid.arrange(p1, p2, nrow=1)
+
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(accidentData, aes(x = STATE)) +
+  geom_bar(fill="cornflowerblue") +
+  facet_wrap(~YEAR, nrow = 3)+
+  labs(title = "Barplot of Accidents count")+theme_bw()
+
+```
+
+```{r}
+# assuming your data frame is called "accidents"
+fatalities_by_state_weather <- aggregate(accidentData$FATALS, by = list(State = accidentData$STATE, Weather = accidentData$WEATHERNAME), FUN = sum)
+
+
+```
+
+```{r}
+library(ggplot2)
+
+ggplot(fatalities_by_state_weather, aes(x = State, y =fatalities_by_state_weather, fill = Weather)) + 
+  geom_bar(stat = "identity") +
+  labs(x = "State", y = "Number of Fatalities", fill = "Weather") +
+  ggtitle("Number of Accident Fatalities by State and Weather")
+
+```
+
+Exercise 1:
+
+Concept and weight in the final grade.
+
+The objective of the project is correctly defined with sufficient precision and can be solved with data mining techniques. 10%
+
+The phases of the life cycle are highly expressed. The examples are clarifying. It justifies and argues for the decisions that have been made. twenty%
+
+Exercise 2:
+
+The database is loaded, its structure is visualized, and the basic facts of the data are explained. 5%
+
+It is studied if there are empty attributes or in different scales that have to be normalized. If this is the case, measures are adopted to address these attributes. A new useful variable is constructed from the existing ones. Some attribute is discretized. 10%
+
+Data is analyzed visually and tangible conclusions are drawn. It is necessary to elaborate a coherent speech and with clear conclusions. It is necessary to contextualize all the results well, the conclusions do not have to be technical but "translated" to the context that is being worked on. 30%
+
+Some other aspects of the data presented in the "Data Preprocessing and Feature Management" modules are covered in depth. 25%
