@@ -1,0 +1,54 @@
+---
+title: "LongitudinalAnalysis"
+date: "2023-03-27"
+output:
+  word_document: default
+  html_document: default
+---
+The goal of my project is to run longitudinal analysis on an ERP component called the Nc. The data set I shared has participants from three different age groups (3mths, 6 mths, and 9mths). For my analysis I have Identified five participants(SubjID: 368,351,348,339,and 320)  who have Nc amplitude from both 3 and 9 months. I am collapsing age variable and also creating a delta value for that Nc amps(9mths-3mths) which will become a new variable "change_Nc_amp". Im trying to create a new dataset that I can use in Rstudio, which will run Linear mixed effects models to analysie changes in Nc amplitude between 3 and 9mth old infants. Additioanly for more context, I'm tryign to examine how Nc responcese to race and gender face categories chnages between the these two groups of infants (3 and 9mths)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Import the original dataset
+
+```{r, message=FALSE, warning=FALSE}
+library(readr)
+data <- read_csv("Nc_ERP_data_table.csv")
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(lme4)
+# filter for selected participants and calculate change in Nc amplitude
+new_data <- data %>%
+  filter(SubjID %in% c(368, 351, 348, 339, 320)) %>%
+  group_by(SubjID) %>%
+  filter(all(c(3,9) %in% Age)) %>%
+  summarize(change_Nc_amp = Nc_Amp[Age == 9] - Nc_Amp[Age == 3]) %>%
+  left_join(data %>%
+              filter(SubjID %in% c(368, 351, 348, 339, 320)) %>%
+              distinct(SubjID, Race, Gender)) %>%
+  select(SubjID, Race, Gender, change_Nc_amp)
+
+# Run a Linear mixed effects model with change in Nc amplitude as the dependent variable
+# and age group and face category as fixed effects, with subject as a random effect
+model <- lmer(change_Nc_amp ~ Race * Gender + (1 | SubjID), data = new_data)
+
+# Check the summary of the model
+summary(model)
+ rew 
+library(car)
+# Run a post hoc test to determine the significance of the =-0main effects and interactions
+Anova(model, type = 3)
+
+```
+
+The REML criterion at convergence (9647.1) is a measure of the goodness of fit of the model. A lower value indicates a better fit. You can compare this value to the REML criterion of other models to assess which one fits the data better.
+The random effects section of the output shows the estimated variance and standard deviation of the intercept (i.e., baseline level of Nc response) for each subject, as well as the residual variance and standard deviation (i.e., unexplained variability) of the model. The fact that there are only five groups (i.e., SubjID) suggests that you have a relatively small sample size.
+Overall, based on this summary statistics, it seems that none of the predictor variables (Race, Gender, and their interaction) have significant effects on the Nc responses. In addition, Based on this output of the ANOVA mode;, it seems that only the Intercept has a significant effect on the Nc responses (p < 0.05), while the effects of Race, Gender, and their interaction are not significant (all p-values are greater than 0.05). This finding is consistent with the earlier interpretation of the coefficients in the model, which also suggested that none of the predictor variables had significant effects.
+
+
