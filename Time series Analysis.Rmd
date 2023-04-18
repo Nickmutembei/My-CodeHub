@@ -1,0 +1,41 @@
+---
+title: "Time series Analysis"
+output: html_document
+date: "2023-04-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+data
+
+```{r, message=FALSE, warning=FALSE}
+library(readr)
+stocks <- read_csv("C:/Users/Admins/Desktop/all_stocks_5yr.csv")
+```
+
+Data processing for the Analysis
+
+check for missing values
+
+```{r}
+# Check for missing values in the dataset
+sum(is.na(stocks))
+
+# Remove rows with missing values
+stocks <- na.omit(stocks)
+
+```
+check for outliers
+
+```{r}
+# Create box plots to visualize the distribution of the variables
+boxplot(stocks$open, stocks$high, stocks$low, stocks$close)
+
+# Create scatter plots to visualize the relationship between variables
+plot(stocks$open, stocks$close)
+
+```
+
+
