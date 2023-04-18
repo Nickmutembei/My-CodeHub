@@ -1,0 +1,167 @@
+---
+title: "MS3253 - Operations Analytics LAB 5"
+date: "3/9/2023"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Name : Lam Ho Ching
+
+Student ID : 55517919
+
+Question 1 - Unicorns
+
+
+The "unicorns" data frame contains information about a few unicorn startups from https://www.cbinsights.com/research-unicorn-companies
+
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+unicorns = tribble(
+	~company, ~valuation_b, ~country,
+	"Toutiao", "$75", "China",
+	"Uber", "$72", "United States",
+	"Didi Chuxing", "$56", "China",
+	"WeWork", "$47", "United States",
+	"GrabTaxi", "11", "Singapore"
+)
+unicorns
+```
+
+
+[Q1A] Change the data type of the "valuation_b" column so that it is a numeric/double column.
+
+```{r}
+unicorns$valuation_b <- as.numeric(gsub("[^[:digit:].]", "", unicorns$valuation_b))
+unicorns
+```
+
+[Q1B] Change the country value "United States" to "USA".
+
+```{r}
+unicorns$country[unicorns$country == "United States"] <- "USA"
+unicorns
+```
+
+Question 2 - Tony's Students
+
+Dr. Tony Stark graduated with a PhD from MIT, and is now an assistant professor at City University of Hong Kong.  Suppose that you are a university administrator, and you wish to determine which students have taken courses taught by Tony Stark.
+
+The data that you need is spread across multiple data tables:
+
+Table 1: All CityU students
+
+
+```{r}
+students = tribble(
+	~student_id, ~student_name,
+	1, "Adam",
+	2, "Brian",
+	3, "Cherry",
+	4, "Diana"
+)
+students
+```
+
+
+Table 2: All courses taken by CityU students
+
+```{r}
+students_courses = tribble(
+	~semester, ~course_code, ~student_id,
+	"2017/18 A", "CB2201", 1,
+	"2017/18 A", "CB2201", 2,
+	"2017/18 B", "CB2201", 3,
+	"2017/18 B", "CB2201", 4,
+	"2017/18 B", "MS3253", 1,
+	"2017/18 B", "MS3253", 4
+)
+students_courses
+```
+
+Table 3: All CityU lecturers
+
+```{r}
+lecturers = tribble(
+	~staff_id, ~staff_name,
+	123, "Tony Stark",
+	789, "James Rhodes"
+)
+lecturers
+```
+
+
+Table 4: All courses taught by CityU lecturers
+
+```{r}
+lecturers_courses = tribble(
+	~semester, ~course_code, ~staff_id,
+	"2017/18 A", "CB2201", 123,
+	"2017/18 B", "CB2201", 789,
+	"2017/18 B", "MS3253", 123
+)
+lecturers_courses
+```
+
+[Q2A] By matching the staff name, filter the "lecturers" data frame so that it contains the row for Dr. Tony Stark.Store the result in the variable "ts".
+
+```{r}
+library(dplyr)
+
+# Filter the lecturers data frame to contain the row for Tony Stark
+ts <- lecturers %>% filter(staff_name == "Tony Stark")
+ts
+
+```
+
+
+[Q2B] Store the courses taught by Dr. Tony Stark into the variable "tsc". 
+
+```{r}
+# Select the courses taught by Dr. Tony Stark
+ts_id <- filter(lecturers, staff_name == "Tony Stark")$staff_id
+tsc <- filter(lecturers_courses, staff_id == ts_id) %>%
+  select(semester, course_code, staff_id) %>%
+  mutate(staff_name = "Tony Stark")
+tsc
+
+```
+
+
+[Q2C] Store the students who took courses taught by Dr. Tony Stark into the variable "tssid".
+
+```{r}
+library(dplyr)
+
+tssid <- students_courses %>%
+  inner_join(lecturers_courses, by = c("semester", "course_code")) %>%
+  inner_join(students, by = "student_id") %>%
+  inner_join(lecturers, by = "staff_id") %>%
+  filter(staff_name == "Tony Stark")
+tssid
+```
+
+
+[Q2D] Compute the names and student IDs of the students who were taught by Dr. Tony Stark, and store the result into the variable `tss`.
+
+```{r}
+library(dplyr)
+
+tss <- students_courses %>%
+  inner_join(lecturers_courses, by = c("semester", "course_code")) %>%
+  inner_join(students, by = "student_id") %>%
+  inner_join(lecturers, by = "staff_id") %>%
+  filter(staff_name == "Tony Stark") %>%
+  select(student_id, student_name) %>%
+  distinct()
+tss
+```
+
+
