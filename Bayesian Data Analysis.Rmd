@@ -1,0 +1,232 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-04-21"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+    1. Question 1 (6 marks)
+
+You are designing a very small experiment to determine the sensitivity of a new security alarm system. You will simulate five robbery attempts and record the number of these attempts that trigger the alarm. Because the dataset will be small you ask two experts for their opinion. One expects the alarm probability to be 0.90 with standard deviation 0.10, the other expects 0.75 with standard deviation 0.25.
+
+(a) (3 marks) Translate these two priors into beta PDFs, plot the two beta PDFs and the corresponding mixture of experts prior with equal weight given to each expert.
+
+To translate these priors into beta PDFs,We can use the following formula to calculate alpha and beta based on the mean and standard deviation of the prior:
+
+    alpha = (mean^2 * (1-mean) / var - mean)
+    beta = alpha * (1/mean - 1)
+
+where "mean" is the prior mean and "var" is the prior variance.
+
+For the first expert prior beta distribution can be calculated as follows:
+
+    mean = 0.9
+    var = 0.1^2 = 0.01
+    alpha = (mean^2 * (1-mean) / var - mean) = 72
+    beta = alpha * (1/mean - 1) = 8
+
+Therefore, the prior beta distribution for the first expert can be represented as:
+  
+    Beta(alpha = 72, beta = 8)
+
+Similarly, for the second expert the prior beta distribution can be calculated as follows:
+
+    mean = 0.75
+    var = 0.25^2 = 0.0625
+    alpha = (mean^2 * (1-mean) / var - mean) = 2.25
+    beta = alpha * (1/mean - 1) = 7
+
+Therefore, the prior beta distribution for the second expert can be represented as:
+
+    Beta(alpha = 2.25, beta = 7)
+
+```{r}
+library(ggplot2)
+
+# Define the parameters for the beta PDFs
+mu1 <- 0.90
+sd1 <- 0.10
+mu2 <- 0.75
+sd2 <- 0.25
+
+# Generate the x-values for the plot
+x <- seq(0, 1, length.out = 100)
+
+# Generate the beta PDFs
+pdf1 <- dbeta(x, mu1 * (mu1*(1-mu1)/sd1^2 - 1), (1 - mu1) * (mu1*(1-mu1)/sd1^2 - 1))
+pdf2 <- dbeta(x, mu2 * (mu2*(1-mu2)/sd2^2 - 1), (1 - mu2) * (mu2*(1-mu2)/sd2^2 - 1))
+
+# Generate the mixture of experts prior
+prior <- 0.5 * pdf1 + 0.5 * pdf2
+
+# Combine the data into a data frame for ggplot
+df <- data.frame(x = x, pdf1 = pdf1, pdf2 = pdf2, prior = prior)
+
+# Plot the beta PDFs and the mixture of experts prior
+ggplot(df, aes(x)) +
+  geom_line(aes(y = pdf1, color = "Expert 1"), size = 1) +
+  geom_line(aes(y = pdf2, color = "Expert 2"), size = 1) +
+  geom_line(aes(y = prior, color = "Mixture of Experts"), size = 1) +
+  ylim(0, 4) +
+  ylab("Density") +
+  ggtitle("Beta PDFs and Mixture of Experts Prior") +
+  theme_bw() +
+  scale_color_manual(values = c("black", "red", "blue")) +
+  labs(color = " ")
+
+```
+
+(b) (3 marks) Now you conduct the experiment and the alarm is triggered in every simulated robbery. Plot the posterior of the alarm probability under a uniform prior, each experts’ prior, and the mixture of experts prior.
+
+```{r}
+library(ggplot2)
+
+# Define the observed data
+n <- 5
+y <- 5
+
+# Define the parameters for the beta PDFs
+mu1 <- 0.90
+sd1 <- 0.10
+mu2 <- 0.75
+sd2 <- 0.25
+
+# Define the prior distributions
+prior_uniform <- dbeta(x, 1, 1)
+prior_expert1 <- dbeta(x, mu1 * (mu1*(1-mu1)/sd1^2 - 1), (1 - mu1) * (mu1*(1-mu1)/sd1^2 - 1))
+prior_expert2 <- dbeta(x, mu2 * (mu2*(1-mu2)/sd2^2 - 1), (1 - mu2) * (mu2*(1-mu2)/sd2^2 - 1))
+prior_mixture <- 0.5 * prior_expert1 + 0.5 * prior_expert2
+
+# Define the likelihood function
+likelihood <- dbinom(y, n, x)
+
+# Calculate the posterior distributions using Bayes' rule
+posterior_uniform <- likelihood * prior_uniform
+posterior_expert1 <- likelihood * prior_expert1
+posterior_expert2 <- likelihood * prior_expert2
+posterior_mixture <- likelihood * prior_mixture
+
+# Combine the data into a data frame for ggplot
+df <- data.frame(x = x, 
+                 posterior_uniform = posterior_uniform, 
+                 posterior_expert1 = posterior_expert1, 
+                 posterior_expert2 = posterior_expert2,
+                 posterior_mixture = posterior_mixture)
+
+# Plot the posterior distributions under different priors
+ggplot(df, aes(x)) +
+  geom_line(aes(y = posterior_uniform, color = "Uniform Prior"), size = 1) +
+  geom_line(aes(y = posterior_expert1, color = "Expert 1 Prior"), size = 1) +
+  geom_line(aes(y = posterior_expert2, color = "Expert 2 Prior"), size = 1) +
+  geom_line(aes(y = posterior_mixture, color = "Mixture of Experts Prior"), size = 1) +
+  ylim(0, 6) +
+  ylab("Density") +
+  ggtitle("Posterior Distributions Under Different Priors") +
+  theme_classic() +
+  scale_color_manual(values = c("black", "red", "blue", "green")) +
+  labs(color = " ") # Remove the color legend title
+
+```
+
+     2. Question 3 (16 marks)
+
+To compare weekly hours spent on homework by students, data is collected from a sample of five different schools. The data is stored in Schools.csv
+
+```{r, message=FALSE, warning=FALSE}
+#Set your working directory
+setwd("C:/Users/alvin/Desktop/Datasets")
+
+#Import the data
+library(readr)
+data <- read_csv("School.csv")
+names(data)
+```
+
+(a) (3 marks) Explore the weekly hours spent on homework by students from the five schools. Do the school specific means seem significantly different from each other? What about their variances?
+
+
+```{r}
+# Calculate means and variances by school
+means <- aggregate(hours ~ school, data, mean)
+vars <- aggregate(hours ~ school, data, var)
+
+# Combine means and variances into a single table
+means_vars <- merge(means, vars, by = "school")
+colnames(means_vars) <- c("School", "Mean of Hours", "Variance of Hours")
+
+# Print the combined table
+print(means_vars)
+
+```
+
+```{r}
+# Perform ANOVA test
+fit <- aov(hours ~ school, data = data)
+summary(fit)
+
+# Perform Bartlett's test
+bartlett.test(hours ~ school, data = data)
+```
+
+From the ANOVA test, we can see that the p-value is greater than 0.05, which suggests that there is no significant difference between the means of the different schools. From the Bartlett's test, we can see that the p-value is greater than 0.05, which suggests that there is no significant difference in the variances of the different schools. Therefore, based on these tests, it seems that the school specific means and variances are not significantly different from each other.
+
+
+(b) (3 marks) Set up a hierarchical model with common and unknown σ in the likelihood. Write out the likelihood, the prior distributions and the hyperprior distributions.
+
+(c) (3 marks) Use JAGS to obtain posterior samples of the parameters in the hierarchical model. Perform appropriate MCMC diagnostics.
+
+```{r}
+
+```
+
+
+    3. Question 3 (8 marks)
+    
+Suppose there are 11 power plant pumps. The number of failures of those 11 pumps follows a Poisson distribution i.e. Xi ∼ Poisson(θiti), i = 1, 2, . . . , 11 where θi is the failure rate for pump i and ti is the length of operation time of the pump (measured in 1,000s of hours). The dataset is summarised into the following table:
+
+     Pump   1     2      3     4      5    6     7     8     9     10      11
+      ti   84.5  25.7  52.9   123   6.24  21.4  2.05  1.05  1.1    9.5    10.5
+      xi    5     1      5     14     3    19     1     1    4     22      23
+      
+A conjugate gamma prior distribution is adopted for the failure rates:
+
+      θi ∼ Γ(a, b), i = 1, 2, . . . , 11,
+         
+with a and b also have their prior distributions as:
+ 
+     a ∼ Exponential(1.1) and b ∼ Γ(0.2, 1).
+     
+(a) (2 marks) Draw the DAG (Directed Acyclic Graph) corresponding to this model.
+
+```{r}
+library(ggdag)
+library(ggplot2)
+
+# Define the nodes and edges of the DAG
+nodes <- c("a", "b", "theta1", "theta2", "theta3", "theta4", "theta5", "theta6", "theta7", "theta8", "theta9", "theta10", "theta11",
+           "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", "x9", "x10", "x11",
+           "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9", "t10", "t11")
+
+edges <- c(
+  "a" -> "theta1", "a" -> "theta2", "a" -> "theta3", "a" -> "theta4", "a" -> "theta5", "a" -> "theta6", "a" -> "theta7", 
+  "a" -> "theta8", "a" -> "theta9", "a" -> "theta10", "a" -> "theta11",
+  "b" -> "theta1", "b" -> "theta2", "b" -> "theta3", "b" -> "theta4", "b" -> "theta5", "b" -> "theta6", "b" -> "theta7", 
+  "b" -> "theta8", "b" -> "theta9", "b" -> "theta10", "b" -> "theta11",
+  "theta1" -> "x1", "theta2" -> "x2", "theta3" -> "x3", "theta4" -> "x4", "theta5" -> "x5", "theta6" -> "x6", 
+  "theta7" -> "x7", "theta8" -> "x8", "theta9" -> "x9", "theta10" -> "x10", "theta11" -> "x11",
+  "t1" -> "theta1", "t2" -> "theta2", "t3" -> "theta3", "t4" -> "theta4", "t5" -> "theta5", "t6" -> "theta6", 
+  "t7" -> "theta7", "t8" -> "theta8", "t9" -> "theta9", "t10" -> "theta10", "t11" -> "theta11"
+)
+
+# Create the ggplot object and add the nodes and edges
+ggdag(nodes, edges) +
+  geom_node() +
+  geom_edge() +
+  theme_dag() +
+  labs(title = "DAG for Poisson-Gamma model") 
+
+```
+
