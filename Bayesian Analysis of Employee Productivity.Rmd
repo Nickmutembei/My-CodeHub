@@ -1,0 +1,173 @@
+---
+title: "Bayesian Analysis of Employee Productivity"
+date: "2023-06-02"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    toc_depth: 2
+    code_folding: hide
+    theme: cerulean
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction 
+
+A key factor in the performance and success of an organization is employee productivity. Businesses must understand the factors that affect employee productivity in order to optimize their processes and raise overall effectiveness. By fusing prior knowledge, observable data, and uncertainty quantification, Bayesian analysis provides a potent framework for measuring worker productivity.
+
+In this study, we investigate using Bayesian analysis to examine employee productivity. While allowing for uncertainty in parameter estimation, Bayesian analysis offers a flexible and reliable method for modeling intricate interactions between many factors and employee productivity. Bayesian analysis provides a thorough knowledge of employee productivity dynamics by including prior beliefs and revising them in light of new information.
+
+
+#Data Description
+
+The dataset used for this study was obtained from Kaggle and consists of 1017 observations with 4 variables. The dataset aims to provide insights into employee productivity within an organization. The variables included in the dataset are described as follows:
+
+"team": The team or group to which an employee belongs is represented by this variable. It acts as an organizational categorization identification for various teams.
+
+The variable "targeted_productivity" describes the amount of productivity that has been set as the standard for each person or team. It stands for the predetermined productivity level or objective established for a specific activity or process.
+
+"smv": Standard Minute Value is referred to as SMV. This variable measures the amount of time required to complete an activity or operation in minutes. It is a tool frequently used in industrial engineering to gauge how long a task would take to complete.
+
+"actual_productivity": This variable indicates the actual productivity attained by individuals or teams as observed or measured. It displays actual output or performance levels in relation to productivity targets. It acts as a quantitative indicator of the actual efficacy and efficiency of the teams or employees.
+
+```{r,message=FALSE, warning=FALSE}
+#Import the data
+library(readr)
+data <- read_csv("Employee productivity.csv")
+```
+
+# Data cleaning and procesing
+
+```{r,message=FALSE, warning=FALSE}
+#summary of the data
+summary(data)
+
+#structure of the data
+str(data)
+
+#check for missing observations
+sum(is.na(data))
+```
+# Define the Bayesian model
+
+```{r}
+library(rjags)
+# Specify the Bayesian model using JAGS syntax
+model_string <- "
+model {
+  # Prior distributions
+  mu_a ~ dnorm(0, 0.001)      # Prior mean for intercept
+  sigma_a ~ dunif(0, 100)     # Prior standard deviation for intercept
+
+  mu_b1 ~ dnorm(0, 0.001)     # Prior mean for targeted_productivity coefficient
+  sigma_b1 ~ dunif(0, 100)    # Prior standard deviation for targeted_productivity coefficient
+
+  mu_b2 ~ dnorm(0, 0.001)     # Prior mean for smv coefficient
+  sigma_b2 ~ dunif(0, 100)    # Prior standard deviation for smv coefficient
+
+  # Likelihood
+  for (i in 1:N) {
+    y[i] ~ dnorm(mu[i], tau)
+    mu[i] <- a + b1 * x1[i] + b2 * x2[i]
+  }
+
+  # Model parameters
+  a ~ dnorm(mu_a, sigma_a)    # Intercept
+  b1 ~ dnorm(mu_b1, sigma_b1) # Coefficient for targeted_productivity
+  b2 ~ dnorm(mu_b2, sigma_b2) # Coefficient for smv
+
+  tau <- pow(sigma, -2)
+  sigma ~ dunif(0, 100)       # Error standard deviation
+}
+"
+
+```
+
+In a Bayesian model above, the prior beliefs and assumptions about the model parameters are influenced by the priors that are selected. The following previous distributions are specified in the JAGS model syntax:
+
+Intercept (a): The normal distribution with a mean (mu_a) of 0 and a precision (1/sigma_a2) of 0.001 serves as the prior distribution for the intercept parameter a. This suggests that the intercept is, with some degree of uncertainty, centered around zero.
+
+Targeted productivity coefficient (b1): The normal distribution with a mean (mu_b1) of 0 and a precision (1/sigma_b12) of 0.001 serves as the prior distribution for the coefficient b1. This implies a previous assumption that the coefficient for targeted_productivity is centered around 0, which denotes the absence of a significant prior expectation.
+
+Coefficient for smv (b2): A normal distribution with a mean (mu_b2) of 0 and a precision (1/sigma_b22) of 0.001 makes up the prior distribution for the coefficient b2. This prior assumption implies that there is no significant prior expectation for the coefficient for smv, similar to b1.
+
+Error standard deviation (sigma): A uniform distribution between 0 and 100 makes up the error standard deviation's prior distribution. This implies that for the error standard deviation, all values in this range are regarded as equally probable.
+
+The prior knowledge or assumptions about the parameters influence the priors' selection. In this instance, the priors are chosen to have tiny precisions, big variances, and weakly informative centers around 0. These priors enable the data to drive the parameter estimations by allowing the data to have a bigger impact on the posterior distributions.
+
+## Prepare the data for JAGS
+
+```{r}
+# Create a list with the data
+jags_data <- list(
+  y = data$actual_productivity,
+  x1 = data$targeted_productivity,
+  x2 = data$smv,
+  N = nrow(data)
+)
+
+```
+
+## Run the Bayesian analysis using JAGS
+
+```{r,message=FALSE, warning=FALSE}
+# Specify the parameters to monitor
+params <- c("a", "b1", "b2")
+
+# Set the initial values for the MCMC chains
+inits <- function() {
+  list(a = rnorm(1, 0, 10),
+       b1 = rnorm(1, 0, 10),
+       b2 = rnorm(1, 0, 10))
+}
+
+# Set the number of iterations and burn-in
+n_iterations <- 10000
+n_burnin <- 1000
+
+# Run the MCMC simulation
+model <- jags.model(textConnection(model_string), data = jags_data, inits = inits)
+samples <- coda.samples(model, variable.names = params, n.iter = n_iterations, 
+                        n.burnin = n_burnin, thin = 1)
+
+```
+# Analyze and interpret the results
+
+```{r}
+# Load the coda package for analyzing the MCMC samples
+library(coda)
+
+# Summarize the posterior distributions
+summary(samples)
+
+# Plot the posterior distributions
+plot(samples)
+
+# Calculate posterior means
+posterior_means <- colMeans(as.matrix(samples))
+posterior_means
+```
+
+# Conclusion
+
+Mean estimates: The mean estimates of the variables show the typical impact of each variable on labor productivity. According to the mean estimations for your data, the intercept (a), targeted_productivity (b1), and smv (b2) coefficients all have values that are roughly in the range of 0.2412, 0.7115, and -0.0016, respectively. These numbers reflect the typical productivity changes that can be expected when the corresponding factors change.
+
+Standard deviations: Each parameter estimate's standard deviations show how widely different the estimations were among the MCMC samples. According to your findings, the standard deviation for variable an is 0.0399, for variable b1 is 0.0527, and for variable b2 is 0.0005. These numbers represent the level of uncertainty in the parameter estimates and imply that the influence of the different variables on employee productivity can vary.
+
+Credible intervals: For each parameter estimate, the credible intervals are represented by the quantiles in the findings. These intervals provide you with a range of conceivable values that the genuine parameter values are probably going to fall within. The 95% credible intervals for your results for a range from 0.1609 to 0.3216, for b1 from 0.6036 to 0.8166, and for b2 from -0.0025 to -0.0007. The degree of uncertainty surrounding the estimated parameter values is shown by these intervals.
+
+• Employee productivity increases as the targeted productivity (b1) is raised, with an average effect of roughly 0.7115.
+• Employee productivity has a negative association with the variable smv (b2), meaning that greater smv values are connected to somewhat worse productivity, with an average effect of about -0.0016.
+
+-From the posterior estimates we can conclude that:
+
+Intercept (parameter "a"): The intercept term's estimated average employee productivity is approximately 0.2407. When all predictor variables are zero, this can be taken as the expected value of employee productivity.
+
+Targeted Productivity (parameter "b1"): The estimated average effect of the variable corresponding to the targeted productivity, denoted by the coefficient "b1," is roughly 0.7115. This shows that, when other factors are held constant, an increase in targeted productivity of one unit is often accompanied by an increase in staff productivity of 0.7115 units.
+
+SMV (parameter "b2"): The SMV variable's estimated average effect, denoted by the coefficient "b2," is roughly -0.0016. This shows that, when other variables are held constant, an increase in SMV of one unit is often accompanied by a 0.0016-unit drop in employee productivity.
+
