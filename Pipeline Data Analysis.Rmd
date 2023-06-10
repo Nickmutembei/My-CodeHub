@@ -1,0 +1,195 @@
+---
+title: "Pipeline data Analysis"
+date: "2023-06-04"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r,message=FALSE, warning=FALSE}
+
+#Import the data
+library(readr)
+data <- read_csv("Pipeline data.csv")
+
+#Data cleaning
+
+# Find columns with only NA values
+na_columns <- colSums(is.na(data)) == nrow(data)
+
+# Remove columns with only NA values
+data <- data[, !na_columns]
+
+```
+
+# Descriptive statistics 
+
+```{r}
+
+# Select relevant columns for analysis (excluding dates)
+relevant_columns <- c("Business Unit", "Zip Code", "State", "Project Type", "Project Type (Detail)",
+                      "Pursuit", "In-Process", "In-Process & Anchor Open", "Complete",
+                      "Total Project Costs...13", "Allocation Check")
+
+# Subset the data
+subset_data <- data[, relevant_columns]
+
+# Calculate summary statistics
+summary(subset_data)
+
+#Describe the data
+library(psych)
+describe(subset_data)
+
+# View the first few rows of the data
+head(subset_data)
+
+```
+# Exploratory Data Analysis
+
+```{r,message=FALSE, warning=FALSE}
+# Load required libraries
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+# Explore the relationship between project type and completion status
+completion_status <- data %>%
+  group_by(`Project Type`, Complete) %>%
+  summarize(count = n())
+completion_status
+
+# Count of projects by project type
+project_type_counts <- data %>%
+  group_by(`Project Type`) %>%
+  summarize(count = n())
+
+
+# Correlation matrix for numeric variables
+numeric_cols <- select_if(data, is.numeric)
+cor_matrix <- cor(numeric_cols)
+print(cor_matrix)
+
+# Visualization
+
+# Count the number of projects by project type
+project_type_counts <- data %>% count(`Project Type`, sort = TRUE)
+
+# Bar plot of project type counts
+ggplot(project_type_counts, aes(x = `Project Type`, y = n)) +
+  geom_bar(stat = "identity", fill = "cornflowerblue") +
+  labs(title = "Project Type Counts", x = "Project Type", y = "Count") +
+  theme_bw()
+
+# Reshape the data to long format
+data_long <- tidyr::pivot_longer(data, cols = c(`Complete`, `In-Process`, `In-Process & Anchor Open`), names_to = "Status", values_to = "Count")
+
+
+# Create a bar plot of completions, in-process, and in-process & anchor open by states
+ggplot(data_long, aes(x = State, y = Count, fill = Status)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(title = "Status of Projects by States", x = "State", y = "Count") +
+  theme_bw() +
+  facet_wrap(~ Status, nrow = 1) +
+  theme(axis.text.x = element_text(angle = 78, hjust = 1))
+
+
+```
+
+
+Business cycles. Does the expenditure tend to vary with the level of economic activity or are they independent of cycles?
+
+```{r}
+# Create a bar plot of project costs (economic activity) by state
+ggplot(data, aes(x = State, y = `Total Project Costs...13`)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Project Costs by States Economic Activity", x = "State", y = "Project Costs") +
+  theme_bw()+ theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+
+```
+
+
+Trends. Are locations or project types affecting expenditure tend?
+
+```{r}
+library(ggplot2)
+
+ggplot(data, aes(x = State, y = `Total Project Costs...13`, color = `Project Type`)) +
+  geom_point() +
+  labs(x = "State", y = "Total Project Costs", title = "Relationship between State and Total Project Costs") +
+  theme_bw()
+
+```
+
+Outliers and historical anomalies. Does the data contain any extreme values that need to be explained? It could be that these represent highly anomalous events that don't add to the predictive power of the data set.
+
+```{r}
+
+# Numeric columns to analyze
+numeric_columns <- names(data)[sapply(data, is.numeric)]
+
+
+# Visualize data using box plots
+boxplot_data <- data[, numeric_columns]
+boxplot(boxplot_data, main = "Boxplot of Numeric Variables")
+
+# Calculate z-scores for all numerical variables
+z_scores <- scale(data[, sapply(data, is.numeric)])
+
+# Identify outliers using z-scores
+z_scores <- as.data.frame(scale(data[, numeric_columns]))
+outliers <- which(abs(z_scores) > 3)
+num_outliers <- length(outliers)  # Count of outliers
+print(paste("Number of outliers:", num_outliers))
+
+```
+
+Relationships between variables. Are there important relationships between variables that could aid in forecasting?
+Based on your exploratory analysis and understanding of the data, you identify and propose potential methods (regression, time series forecasting, machine learning, etc.) to provide solutions to the business problem.
+
+
+```{r}
+
+# Perform regression analysis
+lm_model <- lm(Complete ~ `Project Type` + `Total Project Costs...13`, data = data)
+summary(lm_model)
+
+```
+
+# How does Monthly capital spend trend differently by project size, project duration or state
+
+```{r}
+library(ggplot2)
+
+# Subset the relevant columns from the data
+subset_data <- data[, c("Total Project Costs...13", "Project Type", "State")]
+
+# Remove rows with missing values in Total Project Costs...13
+subset_data <- subset_data[!is.na(subset_data$`Total Project Costs...13`), ]
+
+# Create a box plot to compare Total Project Costs by Project Type
+ggplot(subset_data, aes(x = `Project Type`, y = `Total Project Costs...13`)) +
+  geom_boxplot() +
+  labs(x = "Project Type", y = "Total Project Costs",
+       title = "Comparison of Total Project Costs by Project Type") +
+  theme_bw()
+
+# Create a bar plot to compare Total Project Costs by State
+ggplot(subset_data, aes(x = `State`, y = `Total Project Costs...13`, fill = `State`)) +
+  geom_bar(stat = "identity") +
+  labs(x = "State", y = "Total Project Costs",
+       title = "Comparison of Total Project Costs by State") +
+  theme_bw()+
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank())
+
+```
+
+
+
